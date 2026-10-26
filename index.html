@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLD Explorer · Pincus–Lyapunov Diagram</title>
+<meta name="description" content="交互式 Pincus–Lyapunov 图（PLD）工具：上传爆发序列，计算 Pincus Index 与 Lyapunov Exponent，并与快速射电暴、磁星、脉冲星 glitch、地震、太阳耀发对比。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<!-- ============================ 顶栏 ============================ -->
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">PLD</span>
+      <div class="brand-text">
+        <strong>Pincus–Lyapunov Diagram Explorer</strong>
+        <span>Fast radio bursts, magnetars and earthquakes: their “family feud”?</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="#plot" data-i18n="nav.plot">绘图</a>
+      <a href="#format" data-i18n="nav.format">数据格式</a>
+      <a href="#theory" data-i18n="nav.theory">数学原理</a>
+      <a href="#data" data-i18n="nav.data">文章数据集</a>
+      <a href="#about" data-i18n="nav.about">引用 &amp; 参考文献</a>
+      <a class="btn-paper" href="https://doi.org/10.1007/s11433-026-3030-x" target="_blank" rel="noopener" data-i18n="nav.paper">原文 (SCPMA)</a>
+      <span class="lang-switch" role="group" aria-label="Language">
+        <button type="button" class="lang-btn is-on" data-lang="zh">中文</button>
+        <button type="button" class="lang-btn" data-lang="en">English</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================ Hero ============================ -->
+<section class="hero">
+  <div class="wrap">
+    <h1 data-i18n="hero.title">把你的瞬变事件序列，放进随机性–混沌相空间</h1>
+    <div class="lang-zh">
+      <p class="lead">
+        本工具复现文章 <em>“Fast radio bursts, magnetars and earthquakes: Their ‘family feud’?”</em> 中的
+        <strong>Pincus–Lyapunov 图（PLD）</strong>。上传一组爆发的时间与能量序列，
+        即可计算 <strong>Pincus Index（PI，随机性）</strong> 与 <strong>Lyapunov Exponent（LE，混沌性）</strong>，
+        并与重复快速射电暴、磁星耀发、脉冲星 glitch、地震和太阳耀发放在同一张图上比较。
+      </p>
+    </div>
+    <div class="lang-en" hidden>
+      <p class="lead">
+        This tool reproduces the <strong>Pincus–Lyapunov diagram (PLD)</strong> of
+        <em>“Fast radio bursts, magnetars and earthquakes: Their ‘family feud’?”</em>.
+        Upload a time–energy sequence of bursts and it computes the
+        <strong>Pincus index (PI, stochasticity)</strong> and the
+        <strong>Lyapunov exponent (LE, chaoticity)</strong>, then places your data on the same
+        diagram as repeating FRBs, magnetar bursts, pulsar glitches, earthquakes and solar flares.
+      </p>
+    </div>
+    <div class="hero-meta">
+      <span class="chip">Xu S.-L., Zhang Y.-K., Wang P., Li D., et al.</span>
+      <span class="chip">Sci. China-Phys. Mech. Astron. <b>69</b>, 109511 (2026)</span>
+      <a class="chip chip-link" href="https://doi.org/10.1007/s11433-026-3030-x" target="_blank" rel="noopener">DOI: 10.1007/s11433-026-3030-x ↗</a>
+      <a class="chip chip-link" href="https://link.springer.com/article/10.1007/s11433-026-3030-x" target="_blank" rel="noopener">Springer ↗</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 主工作区 ============================ -->
+<main class="wrap layout" id="plot">
+
+  <!-- ---------- 左：控制面板 ---------- -->
+  <aside class="panel-col">
+
+    <!-- 上传 -->
+    <section class="card">
+      <div class="card-head"><h2 data-i18n="sec.upload">1 · 上传数据（可多选）</h2></div>
+      <p class="hint" data-i18n="hint.upload">CSV 文件：第 1 列为时间（MJD），第 2 列为能量。支持一次选择多个文件，或直接把文件拖进来。</p>
+      <div id="dropzone" class="dropzone">
+        <div class="dz-icon">＋</div>
+        <div class="dz-text"><span data-i18n="dz.drag">拖拽文件到此处，或</span> <span class="fake-link" data-i18n="dz.click">点击选择</span></div>
+        <div class="dz-sub">.csv / .txt / .tsv，<span data-i18n="dz.sub">逗号、分号或空格分隔均可</span></div>
+        <input type="file" id="file-input" multiple accept=".csv,.txt,.tsv,.dat" hidden>
+      </div>
+      <label class="field" style="margin-top:12px">
+        <span data-i18n="field.unit">新数据的时间单位</span>
+        <select id="p-unit">
+          <option value="mjd" selected data-i18n="opt.mjd">MJD（天）— 推荐</option>
+          <option value="second" data-i18n="opt.second">秒（任务经过时 / 相对时标）</option>
+        </select>
+        <small data-i18n="small.unit">对本次上传与手动输入的数据生效；MJD 会先 × 86400 换算成秒再计算等待时间</small>
+      </label>
+      <div id="upload-list" class="ds-list"></div>
+    </section>
+
+    <!-- 手动输入 -->
+    <section class="card">
+      <div class="card-head"><h2 data-i18n="sec.manual">2 · 手动输入 / 粘贴</h2></div>
+      <p class="hint" data-i18n="hint.manual">每行一条记录：<code>MJD, Energy</code>（也可用制表符或空格分隔）。</p>
+      <label class="field">
+        <span data-i18n="field.name">数据集名称</span>
+        <input type="text" id="manual-name" placeholder="My source 2026" value="My source">
+      </label>
+      <textarea id="manual-text" rows="6" placeholder="59093.151961, 1.90e38&#10;59093.152157, 5.33e38&#10;59093.153021, 2.11e38&#10;…"></textarea>
+      <div class="row-btns">
+        <button class="btn btn-ghost" id="btn-manual-sample" data-i18n="btn.sample">填入示例</button>
+        <button class="btn" id="btn-manual-add" data-i18n="btn.add">加入数据集</button>
+      </div>
+    </section>
+
+    <!-- 参数 -->
+    <section class="card">
+      <div class="card-head"><h2 data-i18n="sec.params">3 · 计算参数</h2></div>
+      <div class="params">
+        <label class="field">
+          <span data-i18n="field.gap">观测段切分阈值 <i>Δt</i>（秒）</span>
+          <input type="number" id="p-gap" value="36000" step="100" min="1">
+          <small data-i18n="small.gap">相邻事件间隔超过该值即划分为新的观测段（文章取 36000 s = 10 h）</small>
+        </label>
+        <label class="field">
+          <span data-i18n="field.mode">取用方式</span>
+          <select id="p-mode">
+            <option value="busiest" selected data-i18n="opt.busiest">最活跃观测段（文章默认）</option>
+            <option value="all" data-i18n="opt.all">全部事件合并</option>
+          </select>
+          <small data-i18n="small.mode">对上传／手填数据生效；内置源沿用文章既定的处理方式（全部事件 / 经纬网格分组 / 逐观测段 KDE）</small>
+        </label>
+        <label class="field">
+          <span data-i18n="field.shuffle">Monte-Carlo 重排次数</span>
+          <input type="number" id="p-shuffle" value="100" step="10" min="10" max="500">
+          <small data-i18n="small.shuffle">PI 的分母由打乱序列得到；次数越多越稳，耗时越长（文章取 100）</small>
+        </label>
+        <label class="field">
+          <span data-i18n="field.seed">随机种子</span>
+          <input type="number" id="p-seed" value="42" step="1">
+          <small data-i18n="small.seed">固定种子 ⇒ 结果可复现</small>
+        </label>
+      </div>
+      <div class="row-btns">
+        <button class="btn btn-primary" id="btn-run" data-i18n="btn.run">计算待算数据集</button>
+        <button class="btn btn-ghost" id="btn-reset" data-i18n="btn.reset">恢复默认</button>
+      </div>
+      <div id="progress-box" class="progress-box" hidden>
+        <div class="progress-label"><span id="progress-name">—</span><span id="progress-pct">0%</span></div>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+      </div>
+    </section>
+
+    <div class="card card-note">
+      <span data-i18n="note.local"><b>计算在浏览器本地完成</b>，数据不会上传到任何服务器。大数据集（N ≳ 2000）可能需要十几秒到数十秒。</span>
+    </div>
+  </aside>
+
+  <!-- ---------- 右：图与结果 ---------- -->
+  <section class="plot-col">
+    <div class="card card-plot">
+      <div class="card-head">
+        <h2 data-i18n="plot.title">Pincus–Lyapunov 图</h2>
+        <div class="head-actions">
+          <label class="chk"><input type="checkbox" id="opt-labels" checked> <span data-i18n="chk.labels">显示标签</span></label>
+          <label class="chk"><input type="checkbox" id="opt-errbars" checked> <span data-i18n="chk.errbars">误差棒</span></label>
+          <label class="chk"><input type="checkbox" id="opt-kde" checked> <span data-i18n="chk.kde">20240114A 的 KDE</span></label>
+          <button class="link-btn" id="btn-axis-paper" data-i18n="btn.axis">对齐文章坐标范围</button>
+          <button class="link-btn" id="btn-png" data-i18n="btn.png">导出 PNG（2×）</button>
+          <button class="link-btn" id="btn-csv" data-i18n="btn.csv">导出 CSV</button>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="plot-canvas"></canvas>
+        <div id="tooltip" class="tooltip" hidden></div>
+      </div>
+      <div id="legend" class="legend"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 data-i18n="result.title">我的数据 · 计算结果</h2>
+        <div class="head-actions"><span class="hint" id="result-count"></span></div>
+      </div>
+      <div class="table-wrap">
+        <table class="result-table" id="result-table">
+          <thead>
+            <tr>
+              <th data-i18n="table.src">源</th><th>N</th>
+              <th data-i18n="table.pi">Pincus Index</th><th>±</th>
+              <th data-i18n="table.le">Lyapunov Exp.</th>
+              <th data-i18n="table.note">说明</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="result-body"></tbody>
+        </table>
+      </div>
+      <p class="hint" id="table-hint" data-i18n="hint.table2">N 为差分后的序列长度（事件数 − 1）。PI 的误差为 100 次随机重排得到的标准差传播值。文章数据点的数值见下方「文章数据集」表。</p>
+    </div>
+  </section>
+</main>
+
+<!-- ============================ 数据格式 ============================ -->
+<section class="wrap section" id="format">
+  <h2 class="section-title" data-i18n="format.title">数据格式说明</h2>
+
+  <div class="lang-zh">
+    <div class="two-col">
+      <div class="card">
+        <h3>CSV 结构</h3>
+        <p>上传文件需为纯文本表格，<b>第 1 列时间、第 2 列能量</b>：首行可以是表头（会自动识别列名 <code>time / MJD</code> 与 <code>Energy / fluence / flux</code>），也可以没有表头。</p>
+        <table class="doc-table">
+          <thead><tr><th>列</th><th>名称</th><th>单位 / 说明</th><th>示例</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>time</td><td><b>MJD</b>（修正儒略日，单位：天）</td><td><code>59093.151961</code></td></tr>
+            <tr><td>2</td><td>Energy</td><td>任意一致的能量单位（erg、J、注量、计数…）</td><td><code>1.90e38</code></td></tr>
+            <tr><td>其他</td><td>—</td><td>忽略（可保留经纬、震级等附加列）</td><td></td></tr>
+          </tbody>
+        </table>
+        <pre class="code">time,Energy
+59093.151961,1.90023964159762e+38
+59093.152157,5.332552452872839e+38
+59093.153021,2.109214e+38
+59093.154480,7.77e37</pre>
+        <h3 style="margin-top:18px">时间与能量的换算</h3>
+        <ul class="ul">
+          <li>等待时间 <i>Δt</i> 由相邻事件时间差得到；MJD 会乘以 86400 转成秒。</li>
+          <li>能量差分 <i>ΔE</i> 由相邻事件能量差得到；<b>能量的绝对单位、距离、辐射口径都不影响结果</b>，因为两条序列都会做 min–max 归一化。</li>
+          <li>如果你的原始时间是 <b>秒</b>（例如任务经过时 MET），上传时把“新数据的时间单位”切换为“秒”即可；由于两条序列都会归一化，线性时标不影响 PI / LE。若有条件，仍建议换算成 MJD 以便与文章数据直接对照。</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>注意事项</h3>
+        <ol class="ol">
+          <li><b>时间顺序</b>：无需预先排序，工具会按时间升序排列后再计算。</li>
+          <li><b>时间精度</b>：MJD 请保留足够小数位（建议 ≥ 5 位）。爆发等待时间往往只有几十到几百秒，而 MJD 的 1 天 = 86400 s，时间被截断到 0.001 天就等于 86 s 的误差，会显著污染等待时间序列。</li>
+          <li><b>样本量</b>：差分后至少需要 ~30 个点才能得到稳定的 PI 与 LE；少于 8 个点会被拒绝。样本越短，随机重排带来的涨落越大。</li>
+          <li><b>观测段</b>：默认只取“最活跃”的一段（文章做法），以避免把不同观测日的长空档当成等待时间。若你的数据是连续监测，可在参数里改为“全部事件合并”。</li>
+          <li><b>多文件</b>：可同时上传多个文件，每个文件作为一个独立源，各自分配颜色与标记。</li>
+          <li><b>缺失值 / 非数值行</b>：空行、注释行（# 或 % 开头）与无法解析的行会自动跳过。</li>
+          <li><b>分隔符</b>：逗号、分号、制表符、空格均可自动识别。</li>
+          <li><b>能量为零或负值</b>：允许（差分序列可正可负），只要同一序列内单位一致即可。</li>
+        </ol>
+        <div class="callout">
+          <b>为什么统一用 MJD？</b><br>
+          MJD 是天文学通用的连续时间标度，避免了日期字符串与时区带来的歧义。文章中的 FRB、磁星、脉冲星与地震目录均以 MJD 记录；
+          少数 X 射线样本原始文件用的是任务经过时（秒）——由于 PI / LE 只作用在归一化后的序列上，线性尺度变换不改变结果，
+          这些样本在内置数据中仍保留秒单位并已在界面上标注。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lang-en" hidden>
+    <div class="two-col">
+      <div class="card">
+        <h3>CSV layout</h3>
+        <p>Upload a plain-text table with <b>time in the first column and energy in the second</b>. A header row is optional — column names such as <code>time / MJD</code> and <code>Energy / fluence / flux</code> are recognised automatically.</p>
+        <table class="doc-table">
+          <thead><tr><th>Col</th><th>Name</th><th>Unit / note</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>time</td><td><b>MJD</b> (Modified Julian Date, in days)</td><td><code>59093.151961</code></td></tr>
+            <tr><td>2</td><td>Energy</td><td>Any consistent energy unit (erg, J, fluence, counts…)</td><td><code>1.90e38</code></td></tr>
+            <tr><td>others</td><td>—</td><td>Ignored (extra columns such as latitude, longitude, magnitude are fine)</td><td></td></tr>
+          </tbody>
+        </table>
+        <pre class="code">time,Energy
+59093.151961,1.90023964159762e+38
+59093.152157,5.332552452872839e+38
+59093.153021,2.109214e+38
+59093.154480,7.77e37</pre>
+        <h3 style="margin-top:18px">From time and energy to the two sequences</h3>
+        <ul class="ul">
+          <li>The waiting-time series <i>Δt</i> comes from consecutive time differences; MJD is multiplied by 86400 to convert days into seconds.</li>
+          <li>The energy-increment series <i>ΔE</i> comes from consecutive energy differences. <b>The absolute energy unit, distance and beaming assumptions do not matter</b>, because both series are min–max normalised.</li>
+          <li>If your original times are in <b>seconds</b> (e.g. mission elapsed time), switch “Time unit of new data” to seconds. Because both series are normalised, a linear rescaling of the time axis does not change PI or LE — still, converting to MJD is recommended so results can be compared directly with the published data.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Practical notes</h3>
+        <ol class="ol">
+          <li><b>Ordering</b>: no need to sort — the tool sorts by time before computing.</li>
+          <li><b>Time precision</b>: keep enough decimals in MJD (≥ 5 recommended). Waiting times between bursts are often only tens to hundreds of seconds, while 1 MJD day = 86400 s; truncating to 0.001 d introduces an 86 s error and badly corrupts the waiting-time series.</li>
+          <li><b>Sample size</b>: after differencing you need at least ~30 points for a stable PI and LE; fewer than 8 points is rejected. Shorter samples fluctuate more because of the random shuffles.</li>
+          <li><b>Observing sessions</b>: by default only the most active session is used (as in the paper), so that long gaps between observing days are not mistaken for waiting times. Switch to “all events” for continuous monitoring data.</li>
+          <li><b>Multiple files</b>: several files can be uploaded at once; each becomes an independent source with its own colour and marker.</li>
+          <li><b>Missing / non-numeric rows</b>: blank lines, comment lines (starting with # or %) and unparsable rows are skipped.</li>
+          <li><b>Delimiters</b>: comma, semicolon, tab and whitespace are all detected automatically.</li>
+          <li><b>Zero or negative energies</b>: allowed (the increment series may change sign) as long as the unit is consistent within a series.</li>
+        </ol>
+        <div class="callout">
+          <b>Why MJD everywhere?</b><br>
+          MJD is the standard continuous time scale in astronomy and avoids the ambiguity of date strings and time zones.
+          The FRB, magnetar, pulsar and earthquake catalogues in the paper are all recorded in MJD.
+          A few X-ray samples are stored as mission elapsed time in seconds; because PI and LE act on normalised
+          series, a linear rescaling does not change the result, so those samples keep their second-based time
+          stamps and are flagged in the interface.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <div class="row-btns">
+      <button class="btn btn-ghost" id="btn-download-template" data-i18n="btn.tpl">下载模板 CSV</button>
+      <button class="btn btn-ghost" id="btn-download-example" data-i18n="btn.example">下载示例（FRB 20220912A）</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 数学原理 ============================ -->
+<section class="wrap section" id="theory">
+  <h2 class="section-title" data-i18n="theory.title">数学原理</h2>
+  <div class="lang-zh">
+    <p class="section-lead">
+      Pincus Index 和 Lyapunov Exponent 这两个统计量描述了两种“不可预测性”：
+      <b>Pincus Index</b> 量化序列中重复模式的缺失（随机性），
+      <b>Lyapunov Exponent</b> 量化系统对初始条件的敏感程度（混沌性）。
+    </p>
+  </div>
+  <div class="lang-en" hidden>
+    <p class="section-lead">
+      The two statistics, the <b>Pincus Index</b> and the <b>Lyapunov Exponent</b>, describe two kinds of
+      unpredictability: the Pincus Index quantifies the absence of repeating patterns in a series
+      (randomness), while the Lyapunov Exponent quantifies how sensitive the system is to its
+      initial conditions (chaos).
+    </p>
+  </div>
+
+  <!-- ---------- 中文 ---------- -->
+  <div class="lang-zh">
+    <div class="two-col">
+      <article class="card theory-card">
+        <h3><span class="tag tag-pi">Pincus Index</span> 随机性指标</h3>
+
+        <h4>① 嵌入向量与相似判定</h4>
+        <p>对序列 <i>X</i> = {<i>x</i><sub>1</sub>, …, <i>x<sub>N</sub></i>}，取嵌入维数 <i>m</i>，第 <i>i</i> 个嵌入向量由连续的 <i>m</i> 个样本构成：</p>
+        <div class="eq-block">
+          <span class="vec">[</span><i>x<sub>i</sub></i>, <i>x</i><sub><i>i</i>+1</sub>, …, <i>x</i><sub><i>i</i>+<i>m</i>−1</sub><span class="vec">]</span>
+        </div>
+        <p>两个向量的距离取切比雪夫距离 <i>d</i> = max<sub><i>k</i></sub> |<i>x</i><sub><i>i</i>+<i>k</i></sub> − <i>x</i><sub><i>j</i>+<i>k</i></sub>|，若 <i>d</i> &lt; <i>r</i> 则判定“相似”。</p>
+
+        <h4>② 近似熵 ApEn</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">ApEn(<i>m</i>, <i>r</i>, <i>N</i>) = −</span>
+          <span class="frac"><span class="num">1</span><span class="den"><i>N</i> − <i>m</i></span></span>
+          <span class="bigsum">∑</span>
+          <span class="sum-limits"><span class="up"><i>N</i>−<i>m</i></span><span class="down"><i>i</i>=1</span></span>
+          <span class="ln">ln</span><span class="paren">(</span>
+          <span class="frac frac-sm"><span class="num"><i>C</i><sup><i>m</i>+1</sup><sub><i>i</i></sub>(<i>r</i>)</span><span class="den"><i>C</i><sup><i>m</i></sup><sub><i>i</i></sub>(<i>r</i>)</span></span>
+          <span class="paren">)</span>
+        </div>
+        <p><i>C</i><sup><i>m</i></sup><sub><i>i</i></sub>(<i>r</i>) 是 <i>m</i> 维嵌入空间中与第 <i>i</i> 个向量距离小于 <i>r</i> 的向量占比。ApEn 越小 ⇒ 模式越重复、越可预测。</p>
+
+        <h4>③ 消除阈值依赖：MaxApEn</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">MaxApEn = max</span><sub class="sub-math"><i>r</i></sub>
+          <span class="abs">|</span> ApEn(<i>m</i>+1, <i>r</i>) − ApEn(<i>m</i>, <i>r</i>) <span class="abs">|</span>
+        </div>
+        <p>文章在 <i>r</i> ∈ [10<sup>−10</sup>, 10<sup>1</sup>] 上取 50 个对数等间距阈值，用其中的最大变化量表征该序列的熵水平，从而摆脱单一 <i>r</i> 的选择困难。</p>
+
+        <h4>④ 与随机基线比较：PI</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">PI =</span>
+          <span class="frac"><span class="num">MaxApEn<sub>original</sub></span><span class="den">MaxApEn<sub>shuffled</sub></span></span>
+          <span class="note-eq">（shuffled：100 次随机重排后取中位数）</span>
+        </div>
+        <p>PI → 1 表示原始序列已经和随机重排一样无序；PI 越小表示规则性、可预测性越强。文章中时间序列与能量序列各算一次并取平均，误差由两次重排的标准差传播得到（± 后即 1σ 误差）：</p>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">PI =</span>
+          <span class="frac"><span class="num">PI<sub><i>t</i></sub> + PI<sub><i>E</i></sub></span><span class="den">2</span></span>
+          <span class="pm">±</span>
+          <span class="rgroup"><span class="sqrt">√</span><span class="radicand">¼ (σ<sub><i>t</i></sub><sup>2</sup> + σ<sub><i>E</i></sub><sup>2</sup>)</span></span>
+        </div>
+
+        <h4>⑤ 参考文献</h4>
+        <ul class="ul refs">
+          <li>S. M. Pincus, <i>Proc. Natl. Acad. Sci. U.S.A.</i> <b>88</b>, 2297 (1991).
+            <a href="https://doi.org/10.1073/pnas.88.6.2297" target="_blank" rel="noopener">DOI ↗</a></li>
+          <li>A. Delgado-Bonal, <i>Sci. Rep.</i> <b>9</b>, 12761 (2019).
+            <a href="https://doi.org/10.1038/s41598-019-49320-9" target="_blank" rel="noopener">DOI ↗</a></li>
+        </ul>
+      </article>
+
+      <article class="card theory-card">
+        <h3><span class="tag tag-le">Lyapunov Exponent</span> 混沌指标</h3>
+
+        <h4>① 定义</h4>
+        <p>相空间中两条初始相距 |<i>δ</i><sub>0</sub>| 的轨道，其分离量随时间近似指数增长：</p>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">|<i>δ</i>(<i>t</i>)| ≃ |<i>δ</i><sub>0</sub>|</span> <i>e</i><sup><i>λt</i></sup>
+        </div>
+        <p><i>λ</i> &gt; 0 ⇒ 混沌（对初值敏感）；<i>λ</i> &lt; 0 ⇒ 稳定 / 周期。</p>
+
+        <h4>② 从单变量序列重建相空间</h4>
+        <p>用延迟嵌入把标量序列还原成轨道：<b>x</b><sub><i>i</i></sub> = [<i>x<sub>i</sub></i>, <i>x</i><sub><i>i</i>+<i>τ</i></sub>, …, <i>x</i><sub><i>i</i>+(<i>m</i>−1)<i>τ</i></sub>]。文章采用 <i>m</i> = 10（嵌入维数）、矩阵维数 4、<i>τ</i> = 1。</p>
+
+        <h4>③ Eckmann 等（1986）算法</h4>
+        <ol class="ol compact">
+          <li>对每个轨道点 <b>x</b><sub><i>i</i></sub>，用切比雪夫距离找到至少 8 个最近邻；</li>
+          <li>用最小二乘求局部雅可比矩阵 <i>T<sub>i</sub></i>，使 <i>T<sub>i</sub></i>(<b>x</b><sub><i>j</i></sub> − <b>x</b><sub><i>i</i></sub>) ≈ <b>x</b><sub><i>j</i>+<i>s</i></sub> − <b>x</b><sub><i>i</i>+<i>s</i></sub>；</li>
+          <li>依次对 <i>T<sub>i</sub> Q</i><sub><i>i</i>−1</sub> 做 QR 分解，累积 ln |<i>R</i><sub><i>kk</i></sub>|；</li>
+          <li>对轨道长度平均，并除以步长 <i>τ</i> 与间隔 <i>s</i>，得到完整的 Lyapunov 谱。</li>
+        </ol>
+        <p>取谱中最大者为最大 Lyapunov 指数（MLE）。同样对时间与能量两条序列分别计算后取平均：</p>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">LE =</span>
+          <span class="frac"><span class="num"><i>λ</i><sub><i>t</i></sub> + <i>λ</i><sub><i>E</i></sub></span><span class="den">2</span></span>
+        </div>
+
+        <h4>④ 序列的构造</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">Δ<i>t<sub>i</sub></i> = </span>(<i>t</i><sub><i>i</i>+1</sub> − <i>t<sub>i</sub></i>) × 86400 s,
+          <span class="lhs2">Δ<i>E<sub>i</sub></i> = </span><i>E</i><sub><i>i</i>+1</sub> − <i>E<sub>i</sub></i>
+        </div>
+        <p>两条序列各自 min–max 归一化到 [0, 1] 后再送入上述算法，因此时间单位与能量单位的线性缩放不影响结果。</p>
+
+        <h4>⑤ 参考文献</h4>
+        <ul class="ul refs">
+          <li>C. Schölzel, <i>Nonlinear measures for dynamical systems</i>, Zenodo (2019).
+            <a href="https://doi.org/10.5281/zenodo.3814723" target="_blank" rel="noopener">DOI ↗</a></li>
+          <li>J. P. Eckmann, S. Oliffson Kamphorst, D. Ruelle, and S. Ciliberto, <i>Phys. Rev. A</i> <b>34</b>, 4971 (1986).
+            <a href="https://doi.org/10.1103/PhysRevA.34.4971" target="_blank" rel="noopener">DOI ↗</a></li>
+        </ul>
+      </article>
+    </div>
+
+  </div>
+
+  <!-- ---------- English ---------- -->
+  <div class="lang-en" hidden>
+    <div class="two-col">
+      <article class="card theory-card">
+        <h3><span class="tag tag-pi">Pincus Index</span> a measure of stochasticity</h3>
+
+        <h4>① Embedding vectors and the similarity test</h4>
+        <p>For a series <i>X</i> = {<i>x</i><sub>1</sub>, …, <i>x<sub>N</sub></i>} and embedding dimension <i>m</i>, the <i>i</i>-th embedding vector consists of <i>m</i> consecutive samples:</p>
+        <div class="eq-block">
+          <span class="vec">[</span><i>x<sub>i</sub></i>, <i>x</i><sub><i>i</i>+1</sub>, …, <i>x</i><sub><i>i</i>+<i>m</i>−1</sub><span class="vec">]</span>
+        </div>
+        <p>The distance between two vectors is the Chebyshev distance <i>d</i> = max<sub><i>k</i></sub> |<i>x</i><sub><i>i</i>+<i>k</i></sub> − <i>x</i><sub><i>j</i>+<i>k</i></sub>|; two vectors are “similar” when <i>d</i> &lt; <i>r</i>.</p>
+
+        <h4>② Approximate entropy, ApEn</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">ApEn(<i>m</i>, <i>r</i>, <i>N</i>) = −</span>
+          <span class="frac"><span class="num">1</span><span class="den"><i>N</i> − <i>m</i></span></span>
+          <span class="bigsum">∑</span>
+          <span class="sum-limits"><span class="up"><i>N</i>−<i>m</i></span><span class="down"><i>i</i>=1</span></span>
+          <span class="ln">ln</span><span class="paren">(</span>
+          <span class="frac frac-sm"><span class="num"><i>C</i><sup><i>m</i>+1</sup><sub><i>i</i></sub>(<i>r</i>)</span><span class="den"><i>C</i><sup><i>m</i></sup><sub><i>i</i></sub>(<i>r</i>)</span></span>
+          <span class="paren">)</span>
+        </div>
+        <p><i>C</i><sup><i>m</i></sup><sub><i>i</i></sub>(<i>r</i>) is the fraction of vectors in the <i>m</i>-dimensional embedding space lying within <i>r</i> of the <i>i</i>-th vector. Smaller ApEn ⇒ more repetitive, more predictable.</p>
+
+        <h4>③ Removing the tolerance dependence: MaxApEn</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">MaxApEn = max</span><sub class="sub-math"><i>r</i></sub>
+          <span class="abs">|</span> ApEn(<i>m</i>+1, <i>r</i>) − ApEn(<i>m</i>, <i>r</i>) <span class="abs">|</span>
+        </div>
+        <p>The paper scans 50 logarithmically spaced tolerances over <i>r</i> ∈ [10<sup>−10</sup>, 10<sup>1</sup>] and uses the largest change as the entropy level of the series, avoiding the need to pick a single <i>r</i>.</p>
+
+        <h4>④ Comparison with a random baseline: PI</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">PI =</span>
+          <span class="frac"><span class="num">MaxApEn<sub>original</sub></span><span class="den">MaxApEn<sub>shuffled</sub></span></span>
+          <span class="note-eq">（shuffled: median over 100 random permutations）</span>
+        </div>
+        <p>PI → 1 means the original series is already as irregular as a random shuffle; smaller PI means more regularity and predictability. The paper computes it once for the time series and once for the energy series, then averages the two; the error is propagated from their shuffle standard deviations (± gives the 1σ error):</p>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">PI =</span>
+          <span class="frac"><span class="num">PI<sub><i>t</i></sub> + PI<sub><i>E</i></sub></span><span class="den">2</span></span>
+          <span class="pm">±</span>
+          <span class="rgroup"><span class="sqrt">√</span><span class="radicand">¼ (σ<sub><i>t</i></sub><sup>2</sup> + σ<sub><i>E</i></sub><sup>2</sup>)</span></span>
+        </div>
+
+        <h4>⑤ References</h4>
+        <ul class="ul refs">
+          <li>S. M. Pincus, <i>Proc. Natl. Acad. Sci. U.S.A.</i> <b>88</b>, 2297 (1991).
+            <a href="https://doi.org/10.1073/pnas.88.6.2297" target="_blank" rel="noopener">DOI ↗</a></li>
+          <li>A. Delgado-Bonal, <i>Sci. Rep.</i> <b>9</b>, 12761 (2019).
+            <a href="https://doi.org/10.1038/s41598-019-49320-9" target="_blank" rel="noopener">DOI ↗</a></li>
+        </ul>
+      </article>
+
+      <article class="card theory-card">
+        <h3><span class="tag tag-le">Lyapunov Exponent</span> a measure of chaos</h3>
+
+        <h4>① Definition</h4>
+        <p>Two orbits initially separated by |<i>δ</i><sub>0</sub>| in phase space separate approximately exponentially:</p>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">|<i>δ</i>(<i>t</i>)| ≃ |<i>δ</i><sub>0</sub>|</span> <i>e</i><sup><i>λt</i></sup>
+        </div>
+        <p><i>λ</i> &gt; 0 ⇒ chaotic (sensitive to initial conditions); <i>λ</i> &lt; 0 ⇒ stable / periodic.</p>
+
+        <h4>② Reconstructing phase space from a scalar series</h4>
+        <p>Delay embedding reconstructs the orbit: <b>x</b><sub><i>i</i></sub> = [<i>x<sub>i</sub></i>, <i>x</i><sub><i>i</i>+<i>τ</i></sub>, …, <i>x</i><sub><i>i</i>+(<i>m</i>−1)<i>τ</i></sub>]. The paper uses <i>m</i> = 10 (embedding dimension), matrix dimension 4 and <i>τ</i> = 1.</p>
+
+        <h4>③ The Eckmann et al. (1986) algorithm</h4>
+        <ol class="ol compact">
+          <li>For each orbit point <b>x</b><sub><i>i</i></sub>, find at least 8 nearest neighbours using the Chebyshev distance;</li>
+          <li>Fit the local Jacobian <i>T<sub>i</sub></i> by least squares so that <i>T<sub>i</sub></i>(<b>x</b><sub><i>j</i></sub> − <b>x</b><sub><i>i</i></sub>) ≈ <b>x</b><sub><i>j</i>+<i>s</i></sub> − <b>x</b><sub><i>i</i>+<i>s</i></sub>;</li>
+          <li>QR-decompose <i>T<sub>i</sub> Q</i><sub><i>i</i>−1</sub> successively and accumulate ln |<i>R</i><sub><i>kk</i></sub>|;</li>
+          <li>Average along the orbit and divide by the step <i>τ</i> and the spacing <i>s</i> to obtain the full Lyapunov spectrum.</li>
+        </ol>
+        <p>The largest entry of the spectrum is the maximum Lyapunov exponent (MLE). The same averaging over the time and energy series is applied:</p>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">LE =</span>
+          <span class="frac"><span class="num"><i>λ</i><sub><i>t</i></sub> + <i>λ</i><sub><i>E</i></sub></span><span class="den">2</span></span>
+        </div>
+
+        <h4>④ Constructing the series</h4>
+        <div class="eq-block eq-block-math">
+          <span class="lhs">Δ<i>t<sub>i</sub></i> = </span>(<i>t</i><sub><i>i</i>+1</sub> − <i>t<sub>i</sub></i>) × 86400 s,
+          <span class="lhs2">Δ<i>E<sub>i</sub></i> = </span><i>E</i><sub><i>i</i>+1</sub> − <i>E<sub>i</sub></i>
+        </div>
+        <p>Both series are min–max normalised to [0, 1] before being fed to the algorithms above, so a linear rescaling of the time or energy unit does not affect the result.</p>
+
+        <h4>⑤ References</h4>
+        <ul class="ul refs">
+          <li>C. Schölzel, <i>Nonlinear measures for dynamical systems</i>, Zenodo (2019).
+            <a href="https://doi.org/10.5281/zenodo.3814723" target="_blank" rel="noopener">DOI ↗</a></li>
+          <li>J. P. Eckmann, S. Oliffson Kamphorst, D. Ruelle, and S. Ciliberto, <i>Phys. Rev. A</i> <b>34</b>, 4971 (1986).
+            <a href="https://doi.org/10.1103/PhysRevA.34.4971" target="_blank" rel="noopener">DOI ↗</a></li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 数据下载 ============================ -->
+<section class="wrap section" id="data">
+  <h2 class="section-title" data-i18n="data.title">文章数据集与数据来源</h2>
+
+  <div class="lang-zh">
+    <p class="section-lead">
+      下表即文章 <em>figure 1</em> 中的全部数据点：<b>PI、LE 与误差棒直接反解自发表图（figure1.pdf）的矢量坐标</b>，
+      与文章发表值完全一致。同时列出每个源所用的<b>望远镜 / 设备</b>与<b>事件能量 E<sub>i</sub> 的定义</b>
+      （取自文章 <em>Table 1</em> 与第 2 节）。勾选即在上方图中显示，行末可下载对应的原始 CSV。
+    </p>
+  </div>
+  <div class="lang-en" hidden>
+    <p class="section-lead">
+      The table below lists every data point of <em>figure 1</em> in the paper:
+      <b>PI, LE and the error bars are recovered directly from the vector coordinates of the published figure
+      (figure1.pdf)</b>, so they are identical to the published values. Each row also gives the
+      <b>telescope / instrument</b> and the <b>definition of the event energy E<sub>i</sub></b> used for that source
+      (from <em>Table 1</em> and Section 2 of the paper). Tick a row to show it on the plot above,
+      and use the link at the end of each row to download the corresponding raw CSV.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h3 data-i18n="data.dstitle">文章内置数据集</h3>
+        <span class="hint" data-i18n="data.dssub">取值来源：figure1.pdf 矢量坐标</span>
+      </div>
+      <div class="head-actions">
+        <button class="link-btn" id="btn-select-all" data-i18n="btn.selectall">全选</button>
+        <button class="link-btn" id="btn-select-none" data-i18n="btn.selectnone">清空</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="result-table" id="builtin-table">
+        <thead>
+          <tr>
+            <th class="col-sel"><span class="sr-only">Select</span></th>
+            <th data-i18n="table.src">源</th>
+            <th data-i18n="table.inst">望远镜 / 设备</th>
+            <th data-i18n="table.egu">能量定义</th>
+            <th>N</th>
+            <th data-i18n="table.pi">Pincus Index</th><th>±</th>
+            <th data-i18n="table.le">Lyapunov Exp.</th>
+            <th data-i18n="table.seg">处理方式</th>
+            <th data-i18n="data.csv">CSV</th>
+          </tr>
+        </thead>
+        <tbody id="builtin-body"></tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:10px" data-i18n="hint.table">N 为差分后的序列长度（事件数 − 1）；PI 的误差为 100 次随机重排得到的标准差传播值。「能量定义」一列给出各序列所用的事件幅度 E<sub>i</sub> 的含义。</p>
+  </div>
+
+  <div class="card src-card">
+      <h3 data-i18n="data.srctitle">数据来源</h3>
+      <div class="lang-zh">
+        <p>本文分析所用的全部数据集已存档于 <b>Science Data Bank</b>，可公开获取：</p>
+        <p class="cite">
+          Silu XU, Yongkun Zhang, Pei Wang, et al.
+          <i>A Stochasticity-Chaos Analysis of Magnetar Flares, Glitches, Solar Flares, Earthquakes, FRBs and Repeating Source FRB 20240114A</i>[DS/OL].
+          V1. Science Data Bank, 2026[2026-10-24].
+          <a href="https://doi.org/10.57760/sciencedb.fastro.00031" target="_blank" rel="noopener">https://doi.org/10.57760/sciencedb.fastro.00031</a>.
+          DOI:10.57760/sciencedb.fastro.00031.
+        </p>
+        <p class="hint" data-i18n="data.srchint">引用这些数据时请同时引用上述数据集（Science Data Bank）与文章本身。</p>
+      </div>
+      <div class="lang-en" hidden>
+        <p>All data sets analysed in the paper are archived in the <b>Science Data Bank</b> and are publicly available:</p>
+        <p class="cite">
+          Silu XU, Yongkun Zhang, Pei Wang, et al.
+          <i>A Stochasticity-Chaos Analysis of Magnetar Flares, Glitches, Solar Flares, Earthquakes, FRBs and Repeating Source FRB 20240114A</i>[DS/OL].
+          V1. Science Data Bank, 2026[2026-10-24].
+          <a href="https://doi.org/10.57760/sciencedb.fastro.00031" target="_blank" rel="noopener">https://doi.org/10.57760/sciencedb.fastro.00031</a>.
+          DOI:10.57760/sciencedb.fastro.00031.
+        </p>
+        <p class="hint">When using these data, please cite both the data set (Science Data Bank) and the article itself.</p>
+      </div>
+      <p><a class="chip chip-link" href="https://doi.org/10.57760/sciencedb.fastro.00031" target="_blank" rel="noopener">Science Data Bank ↗</a></p>
+  </div>
+</section>
+
+<!-- ====================== 引用 & 参考文献 ====================== -->
+<section class="wrap section" id="about">
+  <h2 class="section-title" data-i18n="about.title">引用 &amp; 参考文献</h2>
+
+  <div class="lang-zh">
+    <div class="two-col">
+    <div class="card">
+      <h3>引用本文</h3>
+      <p class="cite">
+        S.-L. Xu, Y.-K. Zhang, P. Wang, D. Li, J.-S. Zhang, T.-C. Lv, et al.,
+        “Fast radio bursts, magnetars and earthquakes: Their ‘family feud’?”,
+        <i>Sci. China-Phys. Mech. Astron.</i> <b>69</b>, 109511 (2026).
+      </p>
+      <p><a href="https://doi.org/10.1007/s11433-026-3030-x" target="_blank" rel="noopener">https://doi.org/10.1007/s11433-026-3030-x ↗</a></p>
+
+      <h3 style="margin-top:20px">引用数据</h3>
+      <p class="cite">
+        Silu XU, Yongkun Zhang, Pei Wang, et al.
+        <i>A Stochasticity-Chaos Analysis of Magnetar Flares, Glitches, Solar Flares, Earthquakes, FRBs and
+        Repeating Source FRB 20240114A</i>[DS/OL]. V1. Science Data Bank, 2026[2026-10-24].
+        <a href="https://doi.org/10.57760/sciencedb.fastro.00031" target="_blank" rel="noopener">https://doi.org/10.57760/sciencedb.fastro.00031</a>.
+        DOI:10.57760/sciencedb.fastro.00031.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>算法文献</h3>
+      <ul class="ul refs">
+        <li>S. M. Pincus, <i>Proc. Natl. Acad. Sci. U.S.A.</i> <b>88</b>, 2297 (1991) — 近似熵与序列随机性。
+          <a href="https://doi.org/10.1073/pnas.88.6.2297" target="_blank" rel="noopener">DOI ↗</a></li>
+        <li>A. Delgado-Bonal, <i>Sci. Rep.</i> <b>9</b>, 12761 (2019) — MaxApEn 与 Pincus Index 的定义。
+          <a href="https://doi.org/10.1038/s41598-019-49320-9" target="_blank" rel="noopener">DOI ↗</a></li>
+        <li>J. P. Eckmann, S. Oliffson Kamphorst, D. Ruelle, and S. Ciliberto,
+          <i>Phys. Rev. A</i> <b>34</b>, 4971 (1986) — 由时间序列估计 Lyapunov 谱。
+          <a href="https://doi.org/10.1103/PhysRevA.34.4971" target="_blank" rel="noopener">DOI ↗</a></li>
+        <li>C. Schölzel, <i>Nonlinear measures for dynamical systems</i>, Zenodo (2019) — <code>nolds</code> 参考实现。
+          <a href="https://doi.org/10.5281/zenodo.3814723" target="_blank" rel="noopener">DOI ↗</a></li>
+      </ul>
+      <p class="hint" style="margin-top:12px">
+        本页所有计算都在<b>浏览器本地</b>完成，不依赖服务器，数据不会外传。
+        绘图参数（颜色、标记、字号、误差棒样式、KDE 等值线）严格沿用 <code>figure1.ipynb</code>。
+      </p>
+    </div>
+    </div>
+  </div>
+
+  <div class="lang-en" hidden>
+    <div class="two-col">
+    <div class="card">
+      <h3>Cite the paper</h3>
+      <p class="cite">
+        S.-L. Xu, Y.-K. Zhang, P. Wang, D. Li, J.-S. Zhang, T.-C. Lv, et al.,
+        “Fast radio bursts, magnetars and earthquakes: Their ‘family feud’?”,
+        <i>Sci. China-Phys. Mech. Astron.</i> <b>69</b>, 109511 (2026).
+      </p>
+      <p><a href="https://doi.org/10.1007/s11433-026-3030-x" target="_blank" rel="noopener">https://doi.org/10.1007/s11433-026-3030-x ↗</a></p>
+
+      <h3 style="margin-top:20px">Cite the data</h3>
+      <p class="cite">
+        Silu XU, Yongkun Zhang, Pei Wang, et al.
+        <i>A Stochasticity-Chaos Analysis of Magnetar Flares, Glitches, Solar Flares, Earthquakes, FRBs and
+        Repeating Source FRB 20240114A</i>[DS/OL]. V1. Science Data Bank, 2026[2026-10-24].
+        <a href="https://doi.org/10.57760/sciencedb.fastro.00031" target="_blank" rel="noopener">https://doi.org/10.57760/sciencedb.fastro.00031</a>.
+        DOI:10.57760/sciencedb.fastro.00031.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Algorithmic references</h3>
+      <ul class="ul refs">
+        <li>S. M. Pincus, <i>Proc. Natl. Acad. Sci. U.S.A.</i> <b>88</b>, 2297 (1991) — approximate entropy and series irregularity.
+          <a href="https://doi.org/10.1073/pnas.88.6.2297" target="_blank" rel="noopener">DOI ↗</a></li>
+        <li>A. Delgado-Bonal, <i>Sci. Rep.</i> <b>9</b>, 12761 (2019) — the definition of MaxApEn and the Pincus index.
+          <a href="https://doi.org/10.1038/s41598-019-49320-9" target="_blank" rel="noopener">DOI ↗</a></li>
+        <li>J. P. Eckmann, S. Oliffson Kamphorst, D. Ruelle, and S. Ciliberto,
+          <i>Phys. Rev. A</i> <b>34</b>, 4971 (1986) — Lyapunov spectra from a time series.
+          <a href="https://doi.org/10.1103/PhysRevA.34.4971" target="_blank" rel="noopener">DOI ↗</a></li>
+        <li>C. Schölzel, <i>Nonlinear measures for dynamical systems</i>, Zenodo (2019) — the <code>nolds</code> reference implementation.
+          <a href="https://doi.org/10.5281/zenodo.3814723" target="_blank" rel="noopener">DOI ↗</a></li>
+      </ul>
+      <p class="hint" style="margin-top:12px">
+        Everything is computed <b>locally in your browser</b>; no server is involved and no data leave your machine.
+        Plot styling (colours, markers, font sizes, error-bar caps, KDE contours) follows <code>figure1.ipynb</code> exactly.
+      </p>
+    </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <span>PLD Explorer · <span class="lang-zh">与</span><span class="lang-en" hidden>companion to</span>
+      <a href="https://doi.org/10.1007/s11433-026-3030-x" target="_blank" rel="noopener">SCPMA 69, 109511 (2026)</a>
+      <span class="lang-zh">配套</span></span>
+    <span class="sep">·</span>
+    <span data-i18n="foot.local">计算全部在本地浏览器完成</span>
+    <span class="sep">·</span>
+    <span>Data: <a href="https://doi.org/10.57760/sciencedb.fastro.00031" target="_blank" rel="noopener">Science Data Bank</a></span>
+  </div>
+</footer>
+
+<script src="assets/datasets.js"></script>
+<script src="assets/reference.js"></script>
+<script src="assets/article-values.js"></script>
+<script src="assets/kde-240114.js"></script>
+<script src="assets/i18n.js"></script>
+<script src="assets/embedded-data.js"></script>
+<script src="assets/pld-core.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
