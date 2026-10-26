@@ -121,6 +121,7 @@ PLD-Explorer/
 ├── index.html
 ├── assets/
 │   ├── style.css
+│   ├── cover.jpg 
 │   ├── i18n.js
 │   ├── pld-core.js
 │   ├── app.js
